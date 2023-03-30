@@ -195,29 +195,9 @@ for sub in existing_subscriptions:
             "state": sub['status']
         })
 
-@app.route('/get-subscriptions', methods=['GET'])
-def get_subscriptions():
-    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
-    headers = {
-        "Client-ID": os.environ["TWITCH_CLIENT_ID"],
-        "Authorization": f"Bearer {access_token}"
-    }
-
-    subscriptions_url = "https://api.twitch.tv/helix/eventsub/subscriptions"
-    response = requests.get(subscriptions_url, headers=headers)
-
-    if response.status_code == 200:
-        subscriptions = response.json()["data"]
-        for sub in subscriptions:
-            sub["username"] = get_user_name(sub["condition"]["broadcaster_user_id"])
-        return jsonify(subscriptions)
-    else:
-        print(f"Error: Failed to fetch subscriptions: {response.status_code}")
-        return "Failed to fetch subscriptions", 400
-
 @app.route('/', methods=['GET'])
 def subscribe_form():
-    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
+    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_SIGNING_SECRET"])
     eventsub_info = get_eventsub_info(access_token)
     total_cost = eventsub_info["total_cost"]
     max_total_cost = eventsub_info["max_total_cost"]
@@ -230,7 +210,7 @@ def subscribe():
     if not streamer_name:
         return jsonify({"error": "Please enter a valid streamer name."}), 400
 
-    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
+    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_SIGNING_SECRET"])
     user_id = get_streamer_id(access_token, streamer_name)
 
     if not user_id:

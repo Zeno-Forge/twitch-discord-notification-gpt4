@@ -1,46 +1,23 @@
 <!-- templates/subscribe_page.html -->
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Subscribe to Twitch Streamers to Get Notified When Live</title>
-</head>
-<body>
+  </head>
+  <body>
     <h3>EventSub Subscription Info</h3>
     <p>Total Cost: <span id="total_cost">{{total_cost}}</span></p>
     <p>Max Total Cost: <span id="max_total_cost">{{max_total_cost}}</span></p>
     <div id="message"></div>
-    <form id="subscribe-form" action="/subscribe" method="post">
-        <label for="streamer_name">Streamer Name:</label>
-        <input type="text" id="streamer_name" name="streamer_name">
-        <button type="submit">Subscribe</button>
+    <form id="subscribe-form" action="/" method="post">
+      <label for="streamer_name">Streamer Name:</label>
+      <input type="text" id="streamer_name" name="streamer_name" />
+      <button type="submit">Subscribe</button>
     </form>
     <h1>EventSub Subscriptions</h1>
-    <table border="1" id="subscriptionsTable">
-        <thead>
-            <tr>
-                <th>Streamer Name</th>
-                <th>Event Type</th>
-                <th>Date Created On</th>
-                <th>Callback URL</th>
-                <th>Status</th>
-                <th>Remove</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for subscription in subscriptions %}
-            <tr id="subscription-row-{{ subscription.id }}">
-                <td>{{ subscription.streamer_name }}</td>
-                <td>{{ subscription.event_type }}</td>
-                <td>{{ subscription.created_on }}</td>
-                <td>{{ subscription.callback_url }}</td>
-                <td>{{ subscription.state }}</td>
-                <td><button onclick="removeSubscription('{{ subscription.id }}')" style="color: red;">X</button></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <iframe id="subscription_table" src="{{ url_for('table') }}" width="100%" height="400" frameborder="0"></iframe>
     <script src="{{ url_for('static', filename='main.js') }}"></script>
-</body>
+  </body>
 </html>

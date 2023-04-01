@@ -1,0 +1,44 @@
+<!-- templates/table.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Table</title>
+    <!-- Include any necessary CSS here -->
+  </head>
+  <body>
+    <table border="1" id="subscriptionsTable">
+      <thead>
+        <tr>
+          <th>Streamer Name</th>
+          <th>Event Type</th>
+          <th>Date Created On</th>
+          <th>Callback URL</th>
+          <th>Status</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for subscription in subscriptions %}
+        <tr id="subscription-row-{{ subscription.id }}">
+          <td>{{ subscription.streamer_name }}</td>
+          <td>{{ subscription.event_type }}</td>
+          <td>{{ subscription.created_on }}</td>
+          <td>{{ subscription.callback_url }}</td>
+          <td>{{ subscription.state }}</td>
+          <td>
+            <button
+              onclick="removeSubscription('{{ subscription.id }}')"
+              style="color: red"
+            >
+              X
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <script src="{{ url_for('static', filename='table_js.js') }}"></script>
+  </body>
+</html>

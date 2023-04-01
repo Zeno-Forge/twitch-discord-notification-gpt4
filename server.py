@@ -61,7 +61,7 @@ def subscribe_to_stream_online_events(user_id, streamer_name, access_token, call
         "transport": {
             "method": "webhook",
             "callback": callback_url,
-            "secret": os.environ["TWITCH_WEBHOOK_SECRET"]
+            "secret": os.environ["TWITCH_CLIENT_SECRET"]
         }
     }
     url = "https://api.twitch.tv/helix/eventsub/subscriptions"
@@ -160,6 +160,7 @@ def get_game_data(access_token, game_id):
         print(f"Failed to fetch game data for game ID {game_id}: {response.status_code}")
         return None
 
+# Fetch existing EventSub subscriptions
 def get_existing_subscriptions():
     access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
     headers = {
@@ -171,46 +172,49 @@ def get_existing_subscriptions():
     response = requests.get(subscription_url, headers=headers)
 
     if response.status_code == 200:
-        return response.json()["data"]
+        subscriptions = []
+        for sub in response.json()["data"]:
+            user_id = sub['condition']['broadcaster_user_id']
+            user_name = get_user_name(user_id)
+            created_on_date = datetime.fromisoformat(sub['created_at'].replace("Z", "+00:00"))
+            callback_url = sub['transport']['callback']
+            if user_name:
+                subscriptions.append({
+                    "id": sub['id'],
+                    "streamer_name": user_name,
+                    "event_type": sub['type'],
+                    "created_on": created_on_date,
+                    "callback_url": callback_url,
+                    "state": sub['status']
+        })
+        return subscriptions
     else:
         print(f"Failed to fetch existing subscriptions: {response.status_code}")
         return []
 
-# Fetch existing EventSub subscriptions
-subscriptions = []
-existing_subscriptions = get_existing_subscriptions()
-
-for sub in existing_subscriptions:
-    user_id = sub['condition']['broadcaster_user_id']
-    user_name = get_user_name(user_id)
-    created_on_date = datetime.fromisoformat(sub['created_at'].replace("Z", "+00:00"))
-    callback_url = sub['transport']['callback']
-    if user_name:
-        subscriptions.append({
-            "id": sub['id'],
-            "streamer_name": user_name,
-            "event_type": sub['type'],
-            "created_on": created_on_date,
-            "callback_url": callback_url,
-            "state": sub['status']
-        })
-
 @app.route('/', methods=['GET'])
 def subscribe_form():
-    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_SIGNING_SECRET"])
+    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
     eventsub_info = get_eventsub_info(access_token)
     total_cost = eventsub_info["total_cost"]
     max_total_cost = eventsub_info["max_total_cost"]
+    global subscriptions 
+    subscriptions = get_existing_subscriptions()
 
-    return render_template('subscribe_page.html', total_cost=total_cost, max_total_cost=max_total_cost, subscriptions=subscriptions)
+    return render_template('subscribe_page.html', total_cost=total_cost, max_total_cost=max_total_cost)
 
-@app.route('/subscribe', methods=['POST'])
+@app.route('/table')
+def table():
+    subscriptions = get_existing_subscriptions()
+    return render_template('table.html', subscriptions=subscriptions)
+
+@app.route('/', methods=['POST'])
 def subscribe():
     streamer_name = request.form.get('streamer_name')
     if not streamer_name:
         return jsonify({"error": "Please enter a valid streamer name."}), 400
 
-    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_SIGNING_SECRET"])
+    access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
     user_id = get_streamer_id(access_token, streamer_name)
 
     if not user_id:
@@ -252,7 +256,7 @@ def twitch_event():
 
     # Verify the signature
     payload = message_id + message_timestamp + request.data.decode('utf-8')
-    signature = hmac.new(os.environ['TWITCH_WEBHOOK_SECRET'].encode('utf-8'), payload.encode('utf-8'), hashlib.sha256).hexdigest()
+    signature = hmac.new(os.environ['TWITCH_CLIENT_SECRET'].encode('utf-8'), payload.encode('utf-8'), hashlib.sha256).hexdigest()
     expected_signature = f'sha256={signature}'
 
     if message_signature != expected_signature:
@@ -319,8 +323,6 @@ def remove_subscription():
 
     if response.status_code == 204:
         # Remove the subscription from the list
-        global subscriptions
-        subscriptions = [sub for sub in subscriptions if sub["id"] != subscription_id]
         return "Subscription removed", 200
     else:
         print(f"Error: Failed to remove subscription: {response.status_code}")
@@ -328,9 +330,6 @@ def remove_subscription():
             return "Failed to remove subscription: Subscription not found", 404
         else:
             return f"Failed to remove subscription: {response.status_code}", 400
-
-
-
 
 if __name__ == '__main__':
     app.run(host='localhost', port=int(os.environ.get('PORT', 5000)))

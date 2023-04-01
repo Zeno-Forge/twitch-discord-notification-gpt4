@@ -2,6 +2,10 @@
 const form = document.getElementById('subscribe-form');
 const messageContainer = document.getElementById('message');
 
+window.addEventListener('message', function() {
+    updateEventSubInfo();
+});
+
 async function updateEventSubInfo() {
     try {
         const response = await fetch('/eventsub-info');
@@ -32,6 +36,7 @@ form.addEventListener('submit', async (event) => {
             messageContainer.textContent = success;
             messageContainer.style.color = 'green';
             updateEventSubInfo();
+            reloadSubscriptionTable();
         }
     } catch (error) {
         messageContainer.textContent = 'An error occurred while subscribing.';
@@ -53,14 +58,16 @@ async function removeSubscription(id) {
         });
 
         if (response.ok) {
-            document.getElementById(`subscription-row-${id}`).remove();
-            updateEventSubInfo()
+            reloadSubscriptionTable();
         } else {
             alert('Failed to remove subscription.');
         }
     } catch (error) {
-        alert('An error occurred while removing the subscription.');
+        alert('An error occurred while removing the subscription.' + error);
     }
-    
-    
+}
+
+function reloadSubscriptionTable() {
+    const iframe = document.getElementById('subscription_table');
+    iframe.contentDocument.location.reload();
 }

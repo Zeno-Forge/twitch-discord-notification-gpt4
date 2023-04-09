@@ -281,7 +281,7 @@ def twitch_event():
         event = body['event']
         event_type = event['type']
 
-        if event_type == 'stream.online':
+        if event_type == 'live':
             streamer_name = event['broadcaster_user_name']
             streamer_id = event['broadcaster_user_id']
             print(f"{streamer_name} just went live on Twitch!")

@@ -20,7 +20,7 @@ ngrok_auth_token = os.environ['NGROK_AUTH_TOKEN']
 ngrok.set_auth_token(ngrok_auth_token)
 
 # Start the ngrok tunnel and get the public URL
-ngrok_url = ngrok.connect(port, bind_tls=True).public_url
+ngrok_url = ngrok.connect(os.environ.get("PORT", "8000"), bind_tls=True).public_url
 print(f"ngrok URL: {ngrok_url}")
 
 #Redirects all traffic to https

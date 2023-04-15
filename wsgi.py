@@ -19,7 +19,7 @@ class FlaskApplication(BaseApplication):
         return self.application
 
 load_dotenv()
-port = os.environ.get("PORT", "5000")
+port = os.environ.get("PORT", "8000")
 
 if __name__ == "__main__":
     options = {

@@ -8,18 +8,9 @@ import hmac
 from cachetools import TTLCache
 import time
 from datetime import datetime
-from pyngrok import ngrok
 
 # Load .env file
 load_dotenv()
-
-# Set ngrok authtoken
-ngrok_auth_token = os.environ['NGROK_AUTH_TOKEN']
-ngrok.set_auth_token(ngrok_auth_token)
-
-# Start the ngrok tunnel and get the public URL
-ngrok_url = ngrok.connect(os.environ['PORT'], bind_tls=True).public_url
-print(f"ngrok URL: {ngrok_url}")
 
 app = Flask(__name__)
 
@@ -359,4 +350,7 @@ def test_message():
     
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=int(os.environ.get('PORT', 5000)))
+    # Set Port
+    port = int(os.environ.get("PORT", 5000))
+    
+    app.run(host='localhost', port=port)

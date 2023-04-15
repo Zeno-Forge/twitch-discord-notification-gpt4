@@ -7,7 +7,7 @@ import hashlib
 import hmac
 from cachetools import TTLCache
 import time
-from datetime import datetime
+from dateutil.parser import parse as datetime_parse
 
 # Load .env file
 load_dotenv()
@@ -180,7 +180,7 @@ def get_existing_subscriptions():
         for sub in response.json()["data"]:
             user_id = sub['condition']['broadcaster_user_id']
             user_name = get_user_name(user_id)
-            created_on_date = datetime.fromisoformat(sub['created_at'].replace("Z", "+00:00"))
+            created_on_date = datetime_parse(sub['created_at'])
             callback_url = sub['transport']['callback']
             if user_name:
                 subscriptions.append({

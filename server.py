@@ -159,6 +159,20 @@ def get_game_data(access_token, game_id):
     else:
         print(f"Failed to fetch game data for game ID {game_id}: {response.status_code}")
         return None
+    
+def get_user_data(access_token, streamer_id):
+    headers = {
+        "Client-ID": os.environ["TWITCH_CLIENT_ID"],
+        "Authorization": f"Bearer {access_token}"
+    }
+    url = f"https://api.twitch.tv/helix/users?id={streamer_id}"
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()["data"][0]
+    else:
+        print(f"Failed to fetch user data for streamer ID {streamer_id}: {response.status_code}")
+        return None
 
 # Fetch existing EventSub subscriptions
 def get_existing_subscriptions():
@@ -290,10 +304,11 @@ def twitch_event():
             access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
             stream_data = get_stream_data(access_token, streamer_id)
             game_data = get_game_data(access_token, stream_data['game_id'])
+            user_data = get_user_data(access_token, streamer_id)
 
             stream_title = stream_data['title']
             game_name = game_data['name']
-            profile_picture_url = stream_data['profile_image_url']
+            profile_picture_url = user_data['profile_image_url']
             stream_preview_url = stream_data['thumbnail_url']
 
             # Call the function to send a Discord message with the additional data

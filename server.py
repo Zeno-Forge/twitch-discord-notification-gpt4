@@ -294,7 +294,7 @@ def twitch_event():
 
     # Check if the message_timestamp is older than 10 minutes
     current_timestamp = int(time.time())
-    received_datetime = datetime.fromisoformat(message_timestamp.replace("Z", "+00:00"))
+    received_datetime = datetime_parse(sub['created_at'])
     received_timestamp = int(received_datetime.timestamp())
 
     if current_timestamp - received_timestamp > 600:

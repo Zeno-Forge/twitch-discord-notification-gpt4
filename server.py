@@ -86,32 +86,31 @@ def get_eventsub_info(access_token):
     return response.json()
 
 def send_discord_message(streamer_name, stream_title, game_name, profile_picture_url, stream_preview_url):
-    webhook_url = "DISCORD_WEBSOCKET_URL"
+    webhook_url = os.environ['DISCORD_WEBSOCKET_URL']
+    roleID = os.environ['DISCORD_ROLE_ID']
     
     # Format the message as an embedded Discord message
     embed = {
-        "title": f"{streamer_name} is live!",
-        "description": f"**{stream_title}**\nPlaying: {game_name}",
+        "title": stream_title,
+        "description": f"I am live everybun, please hop on by if you are free!\n\n**Game:**\n{game_name}",
         "url": f"https://www.twitch.tv/{streamer_name}",
         "color": 6570404,  # Twitch purple color
         "thumbnail": {"url": profile_picture_url},
         "image": {"url": stream_preview_url},
-        "author": {
-            "name": streamer_name,
-            "url": f"https://www.twitch.tv/{streamer_name}",
-            "icon_url": profile_picture_url
-        },
         "footer": {
             "text": "Twitch",
             "icon_url": "https://www.freepnglogos.com/uploads/twitch-logo-transparent-png-20.png"
         }
     }
-
-    payload = {"embeds": [embed]}
+    print(f"{stream_preview_url}")
+    payload = {
+        #"content": f"<@&{roleID}>",
+        "embeds": [embed]
+        }
     headers = {"Content-Type": "application/json"}
 
     # Send the message to Discord
-    response = requests.post(webhook_url, data=json.dumps(payload), headers=headers)
+    response = requests.post(webhook_url, json=payload, headers=headers)
 
     if response.status_code != 204:
         print(f"Failed to send message to Discord: {response.status_code}, {response.text}")
@@ -196,6 +195,7 @@ def get_existing_subscriptions():
                 subscriptions.append({
                     "id": sub['id'],
                     "streamer_name": user_name,
+                    "streamer_id": user_id,
                     "event_type": sub['type'],
                     "created_on": created_on_date,
                     "callback_url": callback_url,
@@ -205,6 +205,22 @@ def get_existing_subscriptions():
     else:
         print(f"Failed to fetch existing subscriptions: {response.status_code}")
         return []
+    
+def send_info_to_discord(streamer_name, streamer_id):
+                # Fetch additional stream data
+            access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
+            stream_data = get_stream_data(access_token, streamer_id)
+            game_data = get_game_data(access_token, stream_data['game_id'])
+            user_data = get_user_data(access_token, streamer_id)
+
+            stream_title = stream_data['title']
+            game_name = game_data['name']
+            profile_picture_url = user_data['profile_image_url']
+            stream_preview_url = stream_data['thumbnail_url'].replace('{width}', '1280').replace('{height}', '720')
+
+            # Call the function to send a Discord message with the additional data
+            response = send_discord_message(streamer_name, stream_title, game_name, profile_picture_url, stream_preview_url)
+            return response
 
 @app.route('/', methods=['GET'])
 def subscribe_form():
@@ -299,20 +315,8 @@ def twitch_event():
             streamer_name = event['broadcaster_user_name']
             streamer_id = event['broadcaster_user_id']
             print(f"{streamer_name} just went live on Twitch!")
-
-            # Fetch additional stream data
-            access_token = get_twitch_access_token(os.environ["TWITCH_CLIENT_ID"], os.environ["TWITCH_CLIENT_SECRET"])
-            stream_data = get_stream_data(access_token, streamer_id)
-            game_data = get_game_data(access_token, stream_data['game_id'])
-            user_data = get_user_data(access_token, streamer_id)
-
-            stream_title = stream_data['title']
-            game_name = game_data['name']
-            profile_picture_url = user_data['profile_image_url']
-            stream_preview_url = stream_data['thumbnail_url']
-
-            # Call the function to send a Discord message with the additional data
-            send_discord_message(streamer_name, stream_title, game_name, profile_picture_url, stream_preview_url)
+            
+            response = send_info_to_discord(streamer_name, streamer_id)
 
             return 'OK', 200
 
@@ -345,6 +349,14 @@ def remove_subscription():
             return "Failed to remove subscription: Subscription not found", 404
         else:
             return f"Failed to remove subscription: {response.status_code}", 400
+        
+@app.route('/test', methods=['POST'])
+def test_message():
+    streamer_id = request.form.get('streamer_id')
+    streamer_name = request.form.get('streamer_name')
+    response = send_info_to_discord(streamer_name, streamer_id)
+    return "Tested Discord Post", 204
+    
 
 if __name__ == '__main__':
     app.run(host='localhost', port=int(os.environ.get('PORT', 5000)))

@@ -12,6 +12,7 @@
       <thead>
         <tr>
           <th>Streamer Name</th>
+          <th>Streamer ID</th>
           <th>Event Type</th>
           <th>Date Created On</th>
           <th>Callback URL</th>
@@ -23,6 +24,7 @@
         {% for subscription in subscriptions %}
         <tr id="subscription-row-{{ subscription.id }}">
           <td>{{ subscription.streamer_name }}</td>
+          <td>{{ subscription.streamer_id }}</td>
           <td>{{ subscription.event_type }}</td>
           <td>{{ subscription.created_on }}</td>
           <td>{{ subscription.callback_url }}</td>

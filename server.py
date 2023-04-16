@@ -10,6 +10,7 @@ import time
 from dateutil.parser import parse as datetime_parse
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import json
 
 # Load .env file
 load_dotenv()
@@ -51,7 +52,6 @@ def get_streamer_id(access_token, streamer_name):
     return data[0]["id"] if data else None
 
 def subscribe_to_stream_online_events(user_id, streamer_name, access_token, callback_url):
-    print(f"The callback url is:{callback_url}")
     headers = {
         "Client-ID": os.environ["TWITCH_CLIENT_ID"],
         "Authorization": f"Bearer {access_token}",
@@ -282,58 +282,65 @@ message_id_cache = TTLCache(maxsize=100, ttl=600)
 @app.route('/twitch-event', methods=['POST'])
 @limiter.limit("4 per minute")
 def twitch_event():
-    headers = request.headers
-    body = request.json
+    try :
+        headers = request.headers
+        body = request.json
 
-    if 'Twitch-Eventsub-Message-Type' not in headers:
-        return 'Bad request', 400
+        if 'Twitch-Eventsub-Message-Type' not in headers:
+            return jsonify({'errors': 'Bad Request'}), 400
+        
 
-    message_type = headers['Twitch-Eventsub-Message-Type']
-    message_id = headers['Twitch-Eventsub-Message-Id']
-    message_timestamp = headers['Twitch-Eventsub-Message-Timestamp']
-    message_signature = headers['Twitch-Eventsub-Message-Signature']
+        message_type = headers['Twitch-Eventsub-Message-Type']
+        message_id = headers['Twitch-Eventsub-Message-Id']
+        message_timestamp = headers['Twitch-Eventsub-Message-Timestamp']
+        message_signature = headers['Twitch-Eventsub-Message-Signature']
 
-    # Check for replay attacks
-    if message_id in message_id_cache:
-        return 'Message ID already processed', 400
+        # Check for replay attacks
+        if message_id in message_id_cache:
+            return jsonify({'errors': 'Message ID already processed'}), 400
 
-    # Verify the signature
-    payload = message_id + message_timestamp + request.data.decode('utf-8')
-    signature = hmac.new(os.environ['TWITCH_CLIENT_SECRET'].encode('utf-8'), payload.encode('utf-8'), hashlib.sha256).hexdigest()
-    expected_signature = f'sha256={signature}'
+        # Verify the signature
+        payload = message_id + message_timestamp + request.data.decode('utf-8')
+        signature = hmac.new(os.environ['TWITCH_CLIENT_SECRET'].encode('utf-8'), payload.encode('utf-8'), hashlib.sha256).hexdigest()
+        expected_signature = f'sha256={signature}'
 
-    if message_signature != expected_signature:
-        return 'Invalid signature', 400
+        if message_signature != expected_signature:
+            return jsonify({'errors': 'Bad Request'}), 400
 
-    # Check if the message_timestamp is older than 10 minutes
-    current_timestamp = int(time.time())
-    received_datetime = datetime_parse(message_timestamp)
-    received_timestamp = int(received_datetime.timestamp())
+        # Check if the message_timestamp is older than 10 minutes
+        current_timestamp = int(time.time())
+        received_datetime = datetime_parse(message_timestamp)
+        received_timestamp = int(received_datetime.timestamp())
 
-    if current_timestamp - received_timestamp > 600:
-        return 'Message timestamp too old', 400
+        if current_timestamp - received_timestamp > 600:
+            return jsonify({'errors': 'Message timestamp too old'}), 400
 
-    # Store the message ID in the cache
-    message_id_cache[message_id] = True
+        # Store the message ID in the cache
+        message_id_cache[message_id] = True
 
-    if message_type == 'webhook_callback_verification':
-        challenge = body['challenge']
-        return challenge
+        if message_type == 'webhook_callback_verification':
+            challenge = body['challenge']
+            return challenge
 
-    if message_type == 'notification':
-        event = body['event']
-        event_type = event['type']
+        if message_type == 'notification':
+            event = body['event']
+            event_type = event['type']
 
-        if event_type == 'live':
-            streamer_name = event['broadcaster_user_name']
-            streamer_id = event['broadcaster_user_id']
-            print(f"{streamer_name} just went live on Twitch!")
-            
-            response = send_info_to_discord(streamer_name, streamer_id)
+            if event_type == 'live':
+                streamer_name = event['broadcaster_user_name']
+                streamer_id = event['broadcaster_user_id']
+                print(f"{streamer_name} just went live on Twitch!")
+                
+                response = send_info_to_discord(streamer_name, streamer_id)
 
-            return 'OK', 200
+                return 'OK', 200
 
-    return 'Unsupported message type', 400
+        return jsonify({'errors': 'Bad Request'}), 400
+    except Exception as e:
+        error_msg = str(e)
+        print(error_msg)
+        return jsonify({'errors': 'Bad Request'}), 400
+    
 
 @app.route('/remove-subscription', methods=['POST'])
 def remove_subscription():

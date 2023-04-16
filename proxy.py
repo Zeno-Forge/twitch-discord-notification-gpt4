@@ -3,6 +3,9 @@ from flask import Flask, request, jsonify, make_response
 import requests
 from pyngrok import ngrok
 from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+import traceback
 
 # Load .env file
 load_dotenv()
@@ -16,6 +19,25 @@ ngrok.set_auth_token(ngrok_auth_token)
 # Start the ngrok tunnel and get the public URL
 ngrok_url = ngrok.connect(os.environ.get("PORT", "8001"), bind_tls=True).public_url
 print(f"ngrok URL: {ngrok_url}")
+
+def send_email(subject, body):
+    # Set up the email message
+    message = MIMEText(body)
+    message['Subject'] = subject
+    message['From'] = os.environ['SMTP_USERNAME']
+    message['To'] = os.environ['EMAIL_TO']
+
+    # Connect to the SMTP server
+    smtp_server = os.environ['SMTP_SERVER']
+    smtp_port = os.environ['SMTP_PORT']
+    smtp_username = os.environ['SMTP_USERNAME']
+    smtp_password = os.environ['SMTP_PASSWORD']
+    server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+    server.login(smtp_username, smtp_password)
+    # Send the email
+    server.sendmail(smtp_username, os.environ['EMAIL_TO'], message.as_string())
+    # Disconnect from the SMTP server
+    server.quit()
 
 def send_url():
     server_port = int(os.environ.get("SERVER_PORT", "8000"))
@@ -41,6 +63,10 @@ def twitch_forward():
         resp = make_response(response.text, response.status_code)
 
     resp.status_code = response.status_code
+    
+    if resp.status_code == 400:
+        send_email('Error in Twitch Event', str(resp))
+        
     for header, value in response.headers.items():
         resp.headers[header] = value
     return resp

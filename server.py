@@ -8,20 +8,22 @@ import hmac
 from cachetools import TTLCache
 import time
 from dateutil.parser import parse as datetime_parse
-from pyngrok import ngrok
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Load .env file
 load_dotenv()
+ngrok_url = ""
 
 app = Flask(__name__)
 
-# Set ngrok authtoken
-ngrok_auth_token = os.environ['NGROK_AUTH_TOKEN']
-ngrok.set_auth_token(ngrok_auth_token)
-
-# Start the ngrok tunnel and get the public URL
-ngrok_url = ngrok.connect(os.environ.get("PORT", "8000"), bind_tls=True).public_url
-print(f"ngrok URL: {ngrok_url}")
+# Limit the rate for flask routes
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
 
 #Redirects all traffic to https
 # sslify = SSLify(app) 
@@ -49,6 +51,7 @@ def get_streamer_id(access_token, streamer_name):
     return data[0]["id"] if data else None
 
 def subscribe_to_stream_online_events(user_id, streamer_name, access_token, callback_url):
+    print(f"The callback url is:{callback_url}")
     headers = {
         "Client-ID": os.environ["TWITCH_CLIENT_ID"],
         "Authorization": f"Bearer {access_token}",
@@ -74,6 +77,7 @@ def subscribe_to_stream_online_events(user_id, streamer_name, access_token, call
     else:
         print(f"Failed to subscribe to {streamer_name}'s stream online events")
         print(response.status_code)
+        print(response.json())
     return response.json()
 
 def get_eventsub_info(access_token):
@@ -233,6 +237,14 @@ def subscribe_form():
 
     return render_template('subscribe_page.html', total_cost=total_cost, max_total_cost=max_total_cost)
 
+@app.route('/url', methods=['POST'])
+def url_get():
+    global ngrok_url
+    data = request.get_json()
+    ngrok_url = data['ngrok_url']
+    print(f"ngrok URL: {ngrok_url}")
+    return jsonify({"success": "url recieved."}), 200
+
 @app.route('/table')
 def table():
     subscriptions = get_existing_subscriptions()
@@ -268,6 +280,7 @@ def eventsub_info():
 message_id_cache = TTLCache(maxsize=100, ttl=600)
 
 @app.route('/twitch-event', methods=['POST'])
+@limiter.limit("4 per minute")
 def twitch_event():
     headers = request.headers
     body = request.json
@@ -356,7 +369,6 @@ def test_message():
     streamer_name = request.form.get('streamer_name')
     response = send_info_to_discord(streamer_name, streamer_id)
     return "Tested Discord Post", 204
-    
 
 if __name__ == '__main__':
     # Set Port

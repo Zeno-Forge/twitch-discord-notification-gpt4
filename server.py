@@ -108,7 +108,7 @@ def send_discord_message(streamer_name, stream_title, game_name, profile_picture
     }
     print(f"{stream_preview_url}")
     payload = {
-        #"content": f"<@&{roleID}>",
+        "content": f"<@&{roleID}>",
         "embeds": [embed]
         }
     headers = {"Content-Type": "application/json"}

@@ -66,6 +66,14 @@ def twitch_forward():
     
     if resp.status_code == 400:
         send_email('Error in Twitch Event', str(resp))
+        resp = jsonify({'error':'bad request'}) #clear traceback information from sending out to client
+
+    if resp.status_code == 500:
+        error_message = resp.json().get('error', '')
+        traceback_message = resp.json().get('traceback', '')
+        email_body = f"Error: {error_message}\n\nTraceback:\n{traceback_message}"
+        send_email('Error in Twitch Event', email_body)
+        resp = jsonify({'error':'bad request'}) #clear traceback information from sending out to client
         
     for header, value in response.headers.items():
         resp.headers[header] = value

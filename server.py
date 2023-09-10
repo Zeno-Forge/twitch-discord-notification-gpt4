@@ -1,3 +1,4 @@
+#note to do: make callback URL green if matching current ngrok url
 import os
 import requests
 from flask import Flask, request, jsonify, redirect, url_for, render_template
@@ -292,7 +293,11 @@ def twitch_event():
         body = request.json
 
         if 'Twitch-Eventsub-Message-Type' not in headers:
-            return jsonify({'errors': 'Bad Request 1'}), 400
+            print("no twitch event in header")
+            now = datetime.now()
+            dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+            print("Current Time =", dt_string)
+            return jsonify({'errors': 'Bad Request'}), 400
         
 
         message_type = headers['Twitch-Eventsub-Message-Type']
@@ -302,6 +307,10 @@ def twitch_event():
 
         # Check for replay attacks
         if message_id in message_id_cache:
+            print("replay attack")
+            now = datetime.now()
+            dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+            print("Current Time =", dt_string)
             return jsonify({'errors': 'Message ID already processed'}), 400
 
         # Verify the signature
@@ -310,7 +319,11 @@ def twitch_event():
         expected_signature = f'sha256={signature}'
 
         if message_signature != expected_signature:
-            return jsonify({'errors': 'Bad Request 2'}), 400
+            print("wrong signature")
+            now = datetime.now()
+            dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+            print("Current Time =", dt_string)
+            return jsonify({'errors': 'Bad Request'}), 400
 
         # Check if the message_timestamp is older than 10 minutes
         current_timestamp = int(time.time())
@@ -318,6 +331,10 @@ def twitch_event():
         received_timestamp = int(received_datetime.timestamp())
 
         if current_timestamp - received_timestamp > 600:
+            print("message timestamp too old")
+            now = datetime.now()
+            dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+            print("Current Time =", dt_string)
             return jsonify({'errors': 'Message timestamp too old'}), 400
 
         # Store the message ID in the cache
@@ -339,25 +356,27 @@ def twitch_event():
                 response = send_info_to_discord(streamer_name, streamer_id)
 
                 return 'OK', 200
-
-        return jsonify({'errors': 'Bad Request 3'}), 400
+        print("No conditions matched")
+        print("Header:\n", headers)
+        print("Body:\n", body)
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        print("Current Time =", dt_string)
+        return jsonify({'errors': 'Bad Request, no conditions matched'}), 400
     except Exception as e:
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        headers = request.headers
+        body = request.json
         error_msg = str(e)
-        stack_trace = traceback.format_exc()
-
-        # Get current exception information to access the traceback object
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-
-        # Walk through the traceback to access local variables
-        frame = exc_traceback.tb_frame
-        local_vars = frame.f_locals
-
-        print(f"Exception occurred at {current_time}")
-        print(f"An error occurred: {error_msg}")
-        print(f"Stack Trace:\n{stack_trace}")
-        print(f"Local variables at the time of the exception: {local_vars}")
-        return jsonify({'errors': 'Bad Request'}), 400
+        print(error_msg)
+        traceback_str = traceback.format_exc()
+        print("Traceback:\n", traceback_str)
+        print("\n")
+        print("Header:\n", headers)
+        print("Body:\n", body)
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        print("Current Time =", dt_string)
+        return jsonify({'error': error_msg, 'traceback': traceback_str}), 500
     
 
 @app.route('/remove-subscription', methods=['POST'])

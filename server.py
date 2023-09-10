@@ -15,6 +15,7 @@ import json
 import traceback
 import sys
 from datetime import datetime
+from io import BytesIO
 
 # Load .env file
 load_dotenv()
@@ -297,7 +298,7 @@ def twitch_event():
             now = datetime.now()
             dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
             print("Current Time =", dt_string)
-            return jsonify({'errors': 'Bad Request'}), 400
+            return jsonify({'errors': 'Bad Request 1'}), 400
         
 
         message_type = headers['Twitch-Eventsub-Message-Type']
@@ -323,7 +324,7 @@ def twitch_event():
             now = datetime.now()
             dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
             print("Current Time =", dt_string)
-            return jsonify({'errors': 'Bad Request'}), 400
+            return jsonify({'errors': 'Bad Request 2'}), 400
 
         # Check if the message_timestamp is older than 10 minutes
         current_timestamp = int(time.time())
@@ -363,6 +364,7 @@ def twitch_event():
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         print("Current Time =", dt_string)
         return jsonify({'errors': 'Bad Request, no conditions matched'}), 400
+    
     except Exception as e:
         headers = request.headers
         body = request.json

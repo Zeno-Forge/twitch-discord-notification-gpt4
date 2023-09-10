@@ -11,6 +11,9 @@ from dateutil.parser import parse as datetime_parse
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import json
+import traceback
+import sys
+from datetime import datetime
 
 # Load .env file
 load_dotenv()
@@ -92,6 +95,8 @@ def get_eventsub_info(access_token):
 def send_discord_message(streamer_name, stream_title, game_name, profile_picture_url, stream_preview_url):
     webhook_url = os.environ['DISCORD_WEBSOCKET_URL']
     roleID = os.environ['DISCORD_ROLE_ID']
+    image_response = requests.get(stream_preview_url)
+    image_data = BytesIO(image_response.content)
     
     # Format the message as an embedded Discord message
     embed = {
@@ -100,21 +105,21 @@ def send_discord_message(streamer_name, stream_title, game_name, profile_picture
         "url": f"https://www.twitch.tv/{streamer_name}",
         "color": 6570404,  # Twitch purple color
         "thumbnail": {"url": profile_picture_url},
-        "image": {"url": stream_preview_url},
+        "image": {"url": "attachment://image.jpg"},
         "footer": {
             "text": "Twitch",
             "icon_url": "https://www.freepnglogos.com/uploads/twitch-logo-transparent-png-20.png"
         }
     }
-    print(f"{stream_preview_url}")
-    payload = {
-        #"content": f"<@&{roleID}>",
-        "embeds": [embed]
-        }
-    headers = {"Content-Type": "application/json"}
+
+    # Prepare multipart POST payload
+    multipart_data = {
+        "payload_json": (None, '{"content": "<@&' + roleID + '>", "embeds": [' + str(embed) + ']}'),
+        "file": ("image.jpg", image_data.getvalue(), "image/jpg")
+    }
 
     # Send the message to Discord
-    response = requests.post(webhook_url, json=payload, headers=headers)
+    response = requests.post(webhook_url, files=multipart_data)
 
     if response.status_code != 204:
         print(f"Failed to send message to Discord: {response.status_code}, {response.text}")
@@ -287,7 +292,7 @@ def twitch_event():
         body = request.json
 
         if 'Twitch-Eventsub-Message-Type' not in headers:
-            return jsonify({'errors': 'Bad Request'}), 400
+            return jsonify({'errors': 'Bad Request 1'}), 400
         
 
         message_type = headers['Twitch-Eventsub-Message-Type']
@@ -305,7 +310,7 @@ def twitch_event():
         expected_signature = f'sha256={signature}'
 
         if message_signature != expected_signature:
-            return jsonify({'errors': 'Bad Request'}), 400
+            return jsonify({'errors': 'Bad Request 2'}), 400
 
         # Check if the message_timestamp is older than 10 minutes
         current_timestamp = int(time.time())
@@ -335,10 +340,23 @@ def twitch_event():
 
                 return 'OK', 200
 
-        return jsonify({'errors': 'Bad Request'}), 400
+        return jsonify({'errors': 'Bad Request 3'}), 400
     except Exception as e:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         error_msg = str(e)
-        print(error_msg)
+        stack_trace = traceback.format_exc()
+
+        # Get current exception information to access the traceback object
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+
+        # Walk through the traceback to access local variables
+        frame = exc_traceback.tb_frame
+        local_vars = frame.f_locals
+
+        print(f"Exception occurred at {current_time}")
+        print(f"An error occurred: {error_msg}")
+        print(f"Stack Trace:\n{stack_trace}")
+        print(f"Local variables at the time of the exception: {local_vars}")
         return jsonify({'errors': 'Bad Request'}), 400
     
 

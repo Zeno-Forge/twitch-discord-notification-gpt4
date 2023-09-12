@@ -114,9 +114,14 @@ def send_discord_message(streamer_name, stream_title, game_name, profile_picture
         }
     }
 
+    payload_json = {
+        "content": f"<@&{roleID}>",
+        "embeds": [embed]
+    }
+
     # Prepare multipart POST payload
     multipart_data = {
-        "payload_json": (None, '{"content": "<@&' + roleID + '>", "embeds": [' + str(embed) + ']}'),
+        "payload_json": (None, json.dumps(payload_json)),
         "file": ("image.jpg", image_data.getvalue(), "image/jpg")
     }
 
